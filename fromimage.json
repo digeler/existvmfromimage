@@ -1,0 +1,156 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "west europe",
+      "metadata": {
+        "description": "Location to create the VM in"
+      }
+    },
+    "osDiskVhdUri": {
+      "type": "string",
+      "defaultValue": "https://infrastructuresa.blob.core.windows.net/vhds/MAZDC01.vhd",
+      "metadata": {
+        "description": "Uri of the existing VHD"
+      }
+    },
+    "osType": {
+      "type": "string",
+      "defaultValue": "windows",
+      "allowedValues": [
+        "windows",
+        "linux"
+      ],
+      "metadata": {
+        "description": "Type of OS on the existing vhd"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D2",
+      "metadata": {
+        "description": "Size of the VM"
+      }
+    },
+    "vmName": {
+      "type": "string",
+      "defaultValue": "MAZDC01",
+      "metadata": {
+        "description": "Name of the VM"
+      }
+    },
+    "publicipname": {
+      "type": "string",
+      "defaultValue": "MAZDC01",
+      "metadata": {
+        "description": "Name of the VM"
+      }
+    },
+
+    "nicName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Existingvirtualnetworkname": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Exisitingsubnetname": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pubDnsName": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "variables": {
+    
+      "fffPrefix": "10.0.0.0/16",
+      "fffSubnet1Name": "Subnet-1",
+      "fffSubnet1Prefix": "10.0.0.0/24",
+      "fffSubnet2Name": "Subnet-2",
+      "fffSubnet2Prefix": "10.0.1.0/24",
+      "nicVnetID": "[resourceId('Microsoft.Network/virtualNetworks', 'fff')]",
+      "nicSubnetRef": "[concat(variables('nicVnetID'), '/subnets/', variables('fffSubnet1Name'))]",
+      "pubName": "pub"
+  },
+  "resources": [
+    {
+      "apiVersion": "2015-05-01-preview",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[parameters('vmName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "name": "[concat(parameters('vmName'),'-osDisk')]",
+            "osType": "[parameters('osType')]",
+            "caching": "ReadWrite",
+            "vhd": {
+              "uri": "[parameters('osDiskVhdUri')]"
+            },
+            "createOption": "Attach"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+            }
+          ]
+        }
+      }
+    },
+      {
+          "name": "[parameters('nicName')]",
+          "type": "Microsoft.Network/networkInterfaces",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2015-06-15",
+          "dependsOn": [
+              "[concat('Microsoft.Network/virtualNetworks/', 'fff')]",
+              "[concat('Microsoft.Network/publicIPAddresses/', variables('pubName'))]"
+          ],
+          "tags": {
+              "displayName": "nic"
+          },
+          "properties": {
+              "ipConfigurations": [
+                  {
+                      "name": "ipconfig1",
+                      "properties": {
+                          "privateIPAllocationMethod": "Dynamic",
+                          "subnet": {
+                              "id": "[variables('nicSubnetRef')]"
+                          },
+                          "publicIPAddress": {
+                              "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('pubName'))]"
+                          }
+                      }
+                  }
+              ]
+          }
+      },
+    {
+      "name": "[parameters('publicipname')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "pub"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[parameters('pubDnsName')]"
+        }
+      }
+    }
+  ]
+}
